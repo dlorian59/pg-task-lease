@@ -9,7 +9,8 @@ import java.util.UUID;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
-/** Finite command-line demonstration. Apply schema.sql once before running. */
+// Finite command-line demonstration. Apply schema.sql once before running.
+// Конечный консольный пример. Примените schema.sql один раз до запуска.
 public final class Example {
     private static final Duration WAIT = Duration.ofSeconds(10);
     private static final Duration LEASE_TIME = Duration.ofSeconds(30);
@@ -60,6 +61,7 @@ public final class Example {
         expect(queue.submit(recoverable).block(WAIT), "recoverable task submission");
         TaskLease expired = claimOne(queue, name, Duration.ofMillis(100));
         // Finite demonstration wait; production recovery is scheduled by the application.
+        // Ограниченное ожидание для примера; в рабочей системе восстановление планирует приложение.
         Mono.delay(Duration.ofMillis(250)).block(WAIT);
         expect(!queue.complete(expired).block(WAIT), "expired completion must fail");
         expect(queue.recoverExpired(name, 10, Duration.ZERO).block(WAIT) == 1, "one expired lease recovered");

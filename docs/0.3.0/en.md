@@ -8,6 +8,8 @@
 
 Reactive PostgreSQL task leasing: atomic claims, explicit ownership, bounded retries and recovery after worker failure.
 
+[Practical report job and Boot integration](reports.en.md).
+
 ## Capabilities at a glance
 
 | Capability | Use case | Example |

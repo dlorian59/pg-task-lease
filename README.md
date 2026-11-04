@@ -12,6 +12,8 @@ Reactive PostgreSQL task leasing for workers that need explicit ownership, bound
 
 Submit a task, claim a short lease, process it, and acknowledge it with the same token and generation. An expired worker cannot acknowledge a task that another worker has reclaimed. The library uses R2DBC and Reactor; it does not require Spring or run a background scheduler.
 
+[Practical case: background CSV reports and the Spring Boot starter](docs/0.3.0/reports.en.md).
+
 ## What it handles
 
 - Atomic batch claims with `FOR UPDATE SKIP LOCKED` across independent workers.
@@ -132,6 +134,8 @@ Tests cover concurrent disjoint claims, queue/priority/delay behavior, duplicate
 [**Руководство: возможности, примеры и результаты →**](docs/0.3.0/ru.md)
 
 Реактивная аренда задач в PostgreSQL: атомарный захват, явное владение, ограниченные повторы и восстановление после остановки работника.
+
+[Практический сценарий: фоновые CSV-отчёты и Spring Boot starter](docs/0.3.0/reports.ru.md).
 
 ## Возможности
 

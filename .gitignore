@@ -5,3 +5,4 @@ build/
 .env
 .audit/
 docs/0.3.0/examples/target/
+docs/0.3.0/examples/reports/

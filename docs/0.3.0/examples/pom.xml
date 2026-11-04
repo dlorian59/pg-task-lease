@@ -31,7 +31,7 @@
         <artifactId>maven-compiler-plugin</artifactId>
         <version>3.13.0</version>
         <configuration>
-          <includes><include>Example.java</include></includes>
+          <includes><include>Example.java</include><include>ReportExample.java</include></includes>
         </configuration>
       </plugin>
       <plugin>
