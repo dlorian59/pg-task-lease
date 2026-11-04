@@ -276,3 +276,5 @@ Expected output. The example checks queue transitions, not a real email/payment 
 [MIT](../../LICENSE)
 
 [← Back to documentation and versions / Назад к документации и версиям](../index.md)
+
+[API reference / Справочник API](reference.en.md).

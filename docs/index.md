@@ -21,3 +21,5 @@ The current guides explain each capability with a code example, expected behavio
 [← Back to repository README / Назад к README библиотеки](../README.md)
 
 Practical report / Практический отчёт: [EN](0.3.0/reports.en.md) · [RU](0.3.0/reports.ru.md).
+
+API and limits / API и ограничения: [EN](0.3.0/reference.en.md) · [RU](0.3.0/reference.ru.md).
