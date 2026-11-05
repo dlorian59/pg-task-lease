@@ -32,6 +32,6 @@ The separate [pg-task-lease-spring-boot-starter](https://github.com/dlorian59/pg
 
 The starter handles bounded polling, awaited handlers, heartbeat, expired-lease recovery, timeouts, retries and shutdown cancellation. Your own beans override defaults. Database migration remains explicit. Annotated methods are discovered on initialized singleton beans and invoked through their existing Spring proxies. This is registration, not a new aspect. Domain writes and queue acknowledgment are not combined into one transaction.
 
-The integration checkout is currently local; the GitHub destination is pending publication. With adjacent local checkouts, open `../pg-task-lease-spring-boot-starter/README.md`, then its `docs/0.1.0/en.md` and `examples/report-worker/`. After installing core into Maven Local, install the starter with `./gradlew build publishToMavenLocal` and run `examples/report-worker/run-demo.sh` from that checkout.
+Clone the core and starter repositories into adjacent directories. With adjacent local checkouts, open `../pg-task-lease-spring-boot-starter/README.md`, then its `docs/0.1.0/en.md` and `examples/report-worker/`. After installing core into Maven Local, install the starter with `./gradlew build publishToMavenLocal` and run `examples/report-worker/run-demo.sh` from that checkout.
 
 [README](../../README.md) · [Core API](en.md) · [Versions](../index.md)

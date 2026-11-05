@@ -32,6 +32,6 @@ quarter,invoices,total
 
 Стартер берёт на себя ограниченный опрос, ожидание обработчика, heartbeat, восстановление просроченных аренд, тайм-ауты, повторы и отмену при остановке. Собственные beans имеют приоритет. Миграция базы остаётся явной. Аннотированные методы обнаруживаются у инициализированных singleton beans и вызываются через существующие Spring-прокси. Это регистрация, а не новый аспект. Доменные записи и подтверждение очереди не объединяются в одну транзакцию.
 
-Рабочая копия интеграции пока локальная; публикация по ссылке GitHub ожидается. Если репозитории находятся рядом, откройте `../pg-task-lease-spring-boot-starter/README.md`, затем `docs/0.1.0/ru.md` и `examples/report-worker/` в этом репозитории. После установки core в Maven Local установите стартер через `./gradlew build publishToMavenLocal` и запустите его `examples/report-worker/run-demo.sh`.
+Клонируйте репозитории ядра и стартера в соседние каталоги. Если репозитории находятся рядом, откройте `../pg-task-lease-spring-boot-starter/README.md`, затем `docs/0.1.0/ru.md` и `examples/report-worker/` в этом репозитории. После установки core в Maven Local установите стартер через `./gradlew build publishToMavenLocal` и запустите его `examples/report-worker/run-demo.sh`.
 
 [README](../../README.md) · [Core API](ru.md) · [Версии](../index.md)
