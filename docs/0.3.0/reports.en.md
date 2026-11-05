@@ -28,7 +28,7 @@ This is one finite attempt. A duplicate submission in READY/LEASED/DEAD is repor
 
 ## Reduce the lifecycle code with Spring Boot
 
-The separate [pg-task-lease-spring-boot-starter](https://github.com/59Alex/pg-task-lease-spring-boot-starter) adds a PgTaskQueue bean from Boot's ConnectionFactory and an opt-in managed worker. Its version 0.1.0 report application uses the same UUID-based CSV use case, but the host only annotates a singleton bean method with @PgTaskHandler("reports") (or supplies a TaskHandlerRegistration bean) and enables `pg-task-lease.worker.enabled=true`.
+The separate [pg-task-lease-spring-boot-starter](https://github.com/dlorian59/pg-task-lease-spring-boot-starter) adds a PgTaskQueue bean from Boot's ConnectionFactory and an opt-in managed worker. Its version 0.1.0 report application uses the same UUID-based CSV use case, but the host only annotates a singleton bean method with @PgTaskHandler("reports") (or supplies a TaskHandlerRegistration bean) and enables `pg-task-lease.worker.enabled=true`.
 
 The starter handles bounded polling, awaited handlers, heartbeat, expired-lease recovery, timeouts, retries and shutdown cancellation. Your own beans override defaults. Database migration remains explicit. Annotated methods are discovered on initialized singleton beans and invoked through their existing Spring proxies. This is registration, not a new aspect. Domain writes and queue acknowledgment are not combined into one transaction.
 

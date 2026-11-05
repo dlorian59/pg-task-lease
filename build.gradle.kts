@@ -49,10 +49,10 @@ publishing {
             pom {
                 name.set("pg-task-lease")
                 description.set("Reactive PostgreSQL task leases with fenced acknowledgements and bounded retries")
-                url.set("https://github.com/59Alex/pg-task-lease")
+                url.set("https://github.com/dlorian59/pg-task-lease")
                 licenses { license { name.set("MIT License"); url.set("https://opensource.org/licenses/MIT") } }
-                developers { developer { id.set("59Alex"); name.set("Aleksandr Kashevarov") } }
-                scm { url.set("https://github.com/59Alex/pg-task-lease"); connection.set("scm:git:https://github.com/59Alex/pg-task-lease.git") }
+                developers { developer { id.set("dlorian59"); name.set("Aleksandr Kashevarov") } }
+                scm { url.set("https://github.com/dlorian59/pg-task-lease"); connection.set("scm:git:https://github.com/dlorian59/pg-task-lease.git") }
             }
         }
     }

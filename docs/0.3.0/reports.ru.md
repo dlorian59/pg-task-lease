@@ -28,7 +28,7 @@ quarter,invoices,total
 
 ## Сократить служебный код через Spring Boot
 
-Отдельный [pg-task-lease-spring-boot-starter](https://github.com/59Alex/pg-task-lease-spring-boot-starter) создаёт PgTaskQueue из ConnectionFactory Boot и добавляет явно включаемого работника. Приложение отчёта версии 0.1.0 использует тот же CSV по UUID, но хосту достаточно поставить @PgTaskHandler("reports") на метод singleton bean (либо зарегистрировать TaskHandlerRegistration) и задать `pg-task-lease.worker.enabled=true`.
+Отдельный [pg-task-lease-spring-boot-starter](https://github.com/dlorian59/pg-task-lease-spring-boot-starter) создаёт PgTaskQueue из ConnectionFactory Boot и добавляет явно включаемого работника. Приложение отчёта версии 0.1.0 использует тот же CSV по UUID, но хосту достаточно поставить @PgTaskHandler("reports") на метод singleton bean (либо зарегистрировать TaskHandlerRegistration) и задать `pg-task-lease.worker.enabled=true`.
 
 Стартер берёт на себя ограниченный опрос, ожидание обработчика, heartbeat, восстановление просроченных аренд, тайм-ауты, повторы и отмену при остановке. Собственные beans имеют приоритет. Миграция базы остаётся явной. Аннотированные методы обнаруживаются у инициализированных singleton beans и вызываются через существующие Spring-прокси. Это регистрация, а не новый аспект. Доменные записи и подтверждение очереди не объединяются в одну транзакцию.
 
