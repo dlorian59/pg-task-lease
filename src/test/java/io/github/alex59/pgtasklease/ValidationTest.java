@@ -18,6 +18,18 @@ class ValidationTest {
                 () -> new TaskRequest(UUID.randomUUID(), "q", "", 0, 1, Duration.ofNanos(1)));
     }
 
+    @Test void requestCopiesPreserveIdentityAndValidateOverrides() {
+        var original = TaskRequest.ready(UUID.randomUUID(), "reports", "2026-Q4");
+        var changed = original.withPriority(10).withMaxAttempts(2).withDelay(Duration.ofSeconds(2));
+        assertEquals(original.id(), changed.id());
+        assertEquals(original.payload(), changed.payload());
+        assertEquals(Duration.ZERO, original.delay());
+        assertEquals(Duration.ofSeconds(2), changed.delay());
+        assertThrows(IllegalArgumentException.class, () -> original.withMaxAttempts(0));
+        assertThrows(IllegalArgumentException.class, () -> original.withDelay(Duration.ofMillis(-1)));
+        assertThrows(IllegalArgumentException.class, () -> original.withDelay(Duration.ofSeconds(Long.MAX_VALUE)));
+    }
+
     @Test void rejectsInvalidDurations() {
         assertThrows(IllegalArgumentException.class, () -> Checks.millis(Duration.ZERO, "lease", true));
         assertThrows(IllegalArgumentException.class, () -> Checks.millis(Duration.ofMillis(-1), "delay", false));

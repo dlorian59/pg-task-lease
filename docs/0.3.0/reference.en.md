@@ -43,3 +43,9 @@ There is no cleanup API. Delete terminal rows only under an explicit retention p
 For managed polling, heartbeat, recovery and proxied Spring handlers, see the [starter use case](reports.en.md#reduce-the-lifecycle-code-with-spring-boot). The core intentionally contains no Spring/AOP registration mechanism.
 
 [Guide](en.md) · [Practical example](reports.en.md) · [README](../../README.md)
+
+## Ready requests and immutable overrides
+
+TaskRequest.ready(id, queue, payload) uses priority 0, DEFAULT_MAX_ATTEMPTS=5 and Duration.ZERO. The ID is explicit: retrying with a new ID is a new task. withPriority(int), withMaxAttempts(int), withDelay(Duration) each return a new request and reuse constructor validation. They preserve ID, queue, payload and every other setting. A delay must be nonnegative whole milliseconds up to 365 days; attempts must be positive. The existing constructor remains supported.
+
+[Complete report source](examples/ReportExample.java) · [Spring integration](https://github.com/dlorian59/pg-task-lease-spring-boot-starter) · [README](../../README.md)

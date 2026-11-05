@@ -48,3 +48,13 @@ Java 25/27 emit upstream Netty native-access warnings. Tests pass without previe
 At-least-once attempts remain bounded by `maxAttempts` and depend on active workers/recovery and PostgreSQL durability. The token and generation fence queue rows, not external effects. A failed response or cancellation can follow a committed statement; do not infer rollback or generate replacement ownership. Cleanup of DONE/DEAD rows is application policy and removes UUID submission deduplication history.
 
 Connection-pool acquisition, statement/lock timeouts, polling/backoff, heartbeats and recovery scheduling belong to the application. `SKIP LOCKED` avoids row-lock contention for claims/recovery, but it does not guarantee that every database wait is bounded. Configure database/driver budgets and caller cancellation for your deployment. No throughput, fairness, network-fault, HA or cross-region guarantees were added.
+
+## OSS-013 — ready requests and integration (2026-11-05)
+
+TaskRequest.ready retains the explicit caller UUID and validated defaults (priority 0, five attempts, no delay). Immutable overrides reuse constructor validation, including rejection of a negative/submillisecond/oversized delay. The full constructor and all SQL/lifecycle operations remain unchanged.
+
+Verification: Java 17.0.21 build and local artifacts passed **29 tests** (18 real PostgreSQL scenarios, six lifecycle tests, two documentation compilation checks, three validation tests); zero failures/skips. This run used isolated PostgreSQL **16.15** from an extracted official Ubuntu package because the cached Docker image had missing containerd snapshots. It is not a claim of a new PostgreSQL 17 CI run. The owned temporary server was stopped. JAR class major remains 61. Java 21/25/27 were not rerun for this change.
+
+The plain Java Maven consumer compiled and ran the updated ReportExample: first invocation REPORT_DONE, same UUID again ALREADY_SUBMITTED state=DONE. The starter's independent Maven and Gradle HTTP consumers used this locally built core and confirmed original-content preservation on duplicate submissions. See [starter verification](https://github.com/dlorian59/pg-task-lease-spring-boot-starter/blob/main/docs/VERIFICATION.md).
+
+Проверено локально: TaskRequest.ready и неизменяемые overrides, исходный UUID и валидация сохранены; SQL и lifecycle не менялись. На Java 17.0.21/изолированной PostgreSQL **16.15** прошли **29 тестов без пропусков**, новый Maven-потребитель отчёта и повтор с тем же UUID. Два HTTP-потребителя стартера (Maven/Gradle) также использовали этот core. База была временной и остановлена; это не повторный прогон PostgreSQL 17 или JVM 21/25/27. Байткод остаётся Java 17.

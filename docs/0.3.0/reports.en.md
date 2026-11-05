@@ -28,10 +28,10 @@ This is one finite attempt. A duplicate submission in READY/LEASED/DEAD is repor
 
 ## Reduce the lifecycle code with Spring Boot
 
-The separate [pg-task-lease-spring-boot-starter](https://github.com/dlorian59/pg-task-lease-spring-boot-starter) adds a PgTaskQueue bean from Boot's ConnectionFactory and an opt-in managed worker. Its version 0.1.0 report application uses the same UUID-based CSV use case, but the host only annotates a singleton bean method with @PgTaskHandler("reports") (or supplies a TaskHandlerRegistration bean) and enables `pg-task-lease.worker.enabled=true`.
+The separate [pg-task-lease-spring-boot-starter](https://github.com/dlorian59/pg-task-lease-spring-boot-starter) adds a PgTaskQueue bean from Boot's ConnectionFactory and an opt-in managed worker. Its version 0.1.0 report application uses the same UUID-based CSV use case, but the host only annotates a singleton bean method with @PgTaskHandler(value = "reports", blocking = true) (or supplies a TaskHandlerRegistration bean) and enables `pg-task-lease.worker.enabled=true`.
 
 The starter handles bounded polling, awaited handlers, heartbeat, expired-lease recovery, timeouts, retries and shutdown cancellation. Your own beans override defaults. Database migration remains explicit. Annotated methods are discovered on initialized singleton beans and invoked through their existing Spring proxies. This is registration, not a new aspect. Domain writes and queue acknowledgment are not combined into one transaction.
 
-Clone the core and starter repositories into adjacent directories. With adjacent local checkouts, open `../pg-task-lease-spring-boot-starter/README.md`, then its `docs/0.1.0/en.md` and `examples/report-worker/`. After installing core into Maven Local, install the starter with `./gradlew build publishToMavenLocal` and run `examples/report-worker/run-demo.sh` from that checkout.
+Use the [existing-project integration](https://github.com/dlorian59/pg-task-lease-spring-boot-starter/blob/main/README.md) for Maven/Gradle dependencies, YAML and complete controller/service code. The HTTP report example uses an ordinary void(TaskLease) method with explicit blocking=true; the starter schedules it on boundedElastic. The original reactive Mono<Void> contract remains the default. [Development and HTTP consumer verification](https://github.com/dlorian59/pg-task-lease-spring-boot-starter/blob/main/CONTRIBUTING.md).
 
 [README](../../README.md) · [Core API](en.md) · [Versions](../index.md)

@@ -29,10 +29,7 @@
 
 Руководство описывает локальную версию 0.3.0. Проверены Java 17, 21 и 25 LTS, а также Java 27. Публикация в Maven Central не настроена: сначала установите библиотеку из рабочей копии с версией 0.3.0.
 
-```bash
-cd pg-task-lease
-./gradlew publishToMavenLocal -PtestJavaVersion=17
-```
+[Development / Локальная подготовка артефактов](../../CONTRIBUTING.md)
 
 Результат: библиотека, POM, исходники и Javadoc установлены в локальный Maven-репозиторий. Команда ничего не публикует во внешний реестр.
 
@@ -77,8 +74,8 @@ var wait = Duration.ofSeconds(10);
 
 ```java
 var taskId = UUID.randomUUID();
-var request = new TaskRequest(taskId, "mail", "{\"recipientId\":42}",
-    10, 3, Duration.ZERO);
+var request = TaskRequest.ready(taskId, "mail", "{\"recipientId\":42}")
+    .withPriority(10).withMaxAttempts(3);
 
 boolean inserted = queue.submit(request).block(wait);
 boolean duplicate = queue.submit(request).block(wait);

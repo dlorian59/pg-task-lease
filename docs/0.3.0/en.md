@@ -29,12 +29,9 @@ A small reactive client for explicit task ownership. Start with Java 17+, a Post
 
 This guide describes local version 0.3.0. Java 17, 21 and 25 LTS plus Java 27 are tested. Maven Central publication is not configured: install from a checkout that contains 0.3.0 before using the dependency below.
 
-```bash
-cd pg-task-lease
-./gradlew publishToMavenLocal -PtestJavaVersion=17
-```
+[Development / Локальная подготовка артефактов](../../CONTRIBUTING.md)
 
-Expected: the library, POM, sources and Javadoc are installed in your local Maven repository. This command does not publish to a remote registry.
+The linked development procedure prepares the library, POM, sources and Javadoc in Maven Local. It does not publish to a remote registry.
 
 ```kotlin
 repositories { mavenLocal(); mavenCentral() }
@@ -77,8 +74,8 @@ Choose a stable task UUID before the first attempt. Reusing it prevents a retry 
 
 ```java
 var taskId = UUID.randomUUID();
-var request = new TaskRequest(taskId, "mail", "{\"recipientId\":42}",
-    10, 3, Duration.ZERO);
+var request = TaskRequest.ready(taskId, "mail", "{\"recipientId\":42}")
+    .withPriority(10).withMaxAttempts(3);
 
 boolean inserted = queue.submit(request).block(wait);
 boolean duplicate = queue.submit(request).block(wait);

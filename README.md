@@ -3,180 +3,181 @@
 <details name="readme-language">
 <summary><picture><source media="(prefers-color-scheme: dark)" srcset="assets/lang-en-dark.svg"><img src="assets/lang-en-light.svg" width="42" height="26" alt="EN"></picture></summary>
 
-**Library version:** [0.3.0](docs/0.3.0/en.md) · [All versions](docs/index.md)<br>
-**Java:** [17](docs/0.3.0/java.en.md#java-17) · [21](docs/0.3.0/java.en.md#java-21) · [25](docs/0.3.0/java.en.md#java-25) · [27](docs/0.3.0/java.en.md#java-27)
+**Version:** [0.3.0](docs/0.3.0/en.md) · [Versions](docs/index.md) · Java [17 / 21 / 25 / 27](docs/JAVA-SUPPORT.md)
 
-[**Usage guide: capabilities, examples and expected results →**](docs/0.3.0/en.md)
+Background reports, exports and notifications stored in PostgreSQL. Submit a task once, let independent workers process it, and recover unfinished work after a restart. Suitable when PostgreSQL already belongs to your application and a bounded task queue is enough.
 
-Reactive PostgreSQL task leasing for workers that need explicit ownership, bounded retries, and recovery after a crash.
+## Get started in an existing Spring project
 
-Submit a task, claim a short lease, process it, and acknowledge it with the same token and generation. An expired worker cannot acknowledge a task that another worker has reclaimed. The library uses R2DBC and Reactor; it does not require Spring or run a background scheduler.
+For Boot 4.1.2 with WebFlux, use the [starter](https://github.com/dlorian59/pg-task-lease-spring-boot-starter) below; it includes this core library and supplies the worker lifecycle. Java 17 is the minimum. Artifacts are not on Maven Central yet; [development](CONTRIBUTING.md) explains local preparation.
 
-[API and capability reference](docs/0.3.0/reference.en.md).
-
-[Practical case: background CSV reports and the Spring Boot starter](docs/0.3.0/reports.en.md).
-
-## What it handles
-
-- Atomic batch claims with `FOR UPDATE SKIP LOCKED` across independent workers.
-- Queue isolation, priority preference, delayed availability, and bounded attempt counts.
-- Heartbeats and fenced completion/failure using a lease token and monotonic generation.
-- Recovery of expired leases, with exhausted tasks retained as `DEAD` for inspection.
-- Idempotent submission by caller-provided task UUID.
-
-This provides **at-least-once processing attempts within the configured retry budget**, assuming workers and the recovery loop keep running and PostgreSQL preserves committed writes. It does **not** make external effects exactly once. A worker can finish an external operation and crash before acknowledging it; handlers must deduplicate by task id or use a transactional/idempotent external API.
-
-## Quick start
-
-From the checkout, with JDK 17+ and Docker:
-
-```bash
-./scripts/test-isolated.sh -PtestJavaVersion=17
-./gradlew publishToMavenLocal
+Maven (inside dependencies):
+```xml
+<dependency>
+  <groupId>io.github.59alex</groupId>
+  <artifactId>pg-task-lease-spring-boot-starter</artifactId>
+  <version>0.1.0</version>
+</dependency>
+<dependency>
+  <groupId>org.springframework.boot</groupId>
+  <artifactId>spring-boot-starter-webflux</artifactId>
+</dependency>
+<dependency>
+  <groupId>org.postgresql</groupId>
+  <artifactId>r2dbc-postgresql</artifactId>
+  <scope>runtime</scope>
+</dependency>
 ```
-
-Expected: the isolated integration suite passes and Maven Local receives version 0.3.0. Run the [complete consumer example](docs/0.3.0/en.md#8-run-the-example-and-diagnose-failures) to observe claims, heartbeat, retries and expiry recovery. Maven Central publication is not configured.
-
-## Build and use
-
-Version `0.3.0` requires **Java 17 or newer** and supports **Java 17, 21, and 25 LTS**, plus **Java 27 (non-LTS)**. The library code is compiled with `--release 17`; no preview flags are needed. Use the included Gradle wrapper with JDK 17 or newer. It can be built and installed locally; Maven Central publication is not configured. See [Java support](docs/JAVA-SUPPORT.md) for compatibility and test commands.
-
-```sh
-./gradlew publishToMavenLocal
-```
-
-In the consuming build:
-
+Gradle Kotlin DSL (your existing Boot BOM/plugin manages versions):
 ```kotlin
-repositories { mavenLocal(); mavenCentral() }
 dependencies {
-    implementation("io.github.59alex:pg-task-lease:0.3.0")
-    runtimeOnly("org.postgresql:r2dbc-postgresql:1.1.3.RELEASE")
+    implementation("io.github.59alex:pg-task-lease-spring-boot-starter:0.1.0")
+    implementation("org.springframework.boot:spring-boot-starter-webflux")
+    runtimeOnly("org.postgresql:r2dbc-postgresql")
 }
 ```
 
-Apply [the SQL migration](src/main/resources/pg-task-lease.sql) once to your PostgreSQL database with your normal migration tool. It creates `public.pg_task_lease` and two partial indexes. PostgreSQL 17 is integration-tested. The application role needs `SELECT`, `INSERT`, and `UPDATE` on this table; migration privileges are separate.
+Apply [the migration](src/main/resources/pg-task-lease.sql) through your application migration tool before enabling workers, then add application.yml:
+
+```yaml
+spring:
+  r2dbc:
+    url: ${TASKS_R2DBC_URL}
+    username: ${TASKS_DB_USER}
+    password: ${TASKS_DB_PASSWORD}
+  sql:
+    init:
+      mode: never
+pg-task-lease:
+  worker:
+    enabled: true
+```
+
+The [ready controller and service](https://github.com/dlorian59/pg-task-lease-spring-boot-starter/blob/main/README.md) accept PUT /reports/{id}?quarter=2026-Q4 and expose GET /reports/{id}. Copy the linked complete source into this structure beneath your current application scan package:
+
+```text
+src/main/java/example/
+  ReportController.java
+  ReportService.java
+  ReportJobs.java
+src/main/resources/application.yml
+src/main/resources/db/migration/Vxxx__pg_task_lease.sql
+```
+
+The service injects PgTaskQueue and submits with one expression:
 
 ```java
-import io.github.alex59.pgtasklease.*;
-import io.r2dbc.spi.ConnectionFactories;
-import java.time.Duration;
-import java.util.UUID;
-import reactor.core.publisher.Flux;
-import reactor.core.publisher.Mono;
-
-var queue = new PgTaskQueue(ConnectionFactories.get(System.getenv("TASKS_R2DBC_URL")));
-var request = new TaskRequest(UUID.randomUUID(), "notifications",
-        "{\"recipientId\":42}", 10, 5, Duration.ZERO);
-
-Mono<Boolean> submitted = queue.submit(request);
-
-// Subscribe through your application's lifecycle. Do not leave these cold publishers unused.
-Mono<Void> oneBatch = submitted.then(
-    queue.claim("notifications", "worker-1", 4, Duration.ofSeconds(30))
-        .flatMapMany(Flux::fromIterable)
-        .flatMap(lease -> processIdempotently(lease.id(), lease.payload())
-            .then(queue.complete(lease))
-            .flatMap(acknowledged -> acknowledged ? Mono.<Void>empty()
-                : Mono.error(new IllegalStateException("Lease was lost"))), 4)
-        .then());
+queue.submit(TaskRequest.ready(id, "reports", "2026-Q4"));
 ```
 
-`processIdempotently(UUID, String)` is your handler returning `Mono<Void>`. Keep processing concurrency at least as large as the batch you claim, or ensure leases cover local waiting time. The example intentionally propagates handler errors: a failed or cancelled batch remains leased until recovery. For controlled retries, call `fail` when the handler fails; do not classify a transport error from `complete` as proof that the handler failed.
+The starter's [complete CSV handler](https://github.com/dlorian59/pg-task-lease-spring-boot-starter/blob/main/examples/report-worker/src/main/java/example/ReportJobs.java) uses @PgTaskHandler(value = "reports", blocking = true) on a normal void method. It writes one report keyed by the task UUID; no polling or heartbeat implementation is needed in the application. HTTP 202 means accepted submission, GET eventually returns DONE, and reports/&lt;id&gt;.csv contains the result. Authentication, ownership checks and real report data belong to your application. [Step-by-step explanation](https://github.com/dlorian59/pg-task-lease-spring-boot-starter/blob/main/docs/0.1.0/en.md).
 
-The [tested usage example](src/test/java/io/github/alex59/pgtasklease/PgTaskQueueIntegrationTest.java) exercises the API against PostgreSQL.
+## Core capabilities
 
-## Lifecycle contract
+1. **Submit with defaults:** `TaskRequest.ready(id, "reports", quarter)` → priority 0, five attempts, immediate availability. Reuse the ID across transport retries; submit returns false for an existing ID without replacing it. [Full source](docs/0.3.0/examples/ReportExample.java), [explanation](docs/0.3.0/en.md#2-submit-once-and-retry-submission-safely).
+2. **Change just one choice:** `request.withDelay(Duration.ofMinutes(5)).withPriority(10)` → a new validated request. `.withMaxAttempts(2)` bounds claims. [Reference](docs/0.3.0/reference.en.md#ready-requests-and-immutable-overrides).
+3. **Share work:** `queue.claim("reports", "worker-a", 4, Duration.ofSeconds(30))` → up to four distinct tasks owned by this attempt. [Parallel example](docs/0.3.0/en.md#3-claim-batches-with-parallel-workers).
+4. **Acknowledge current work:** `queue.complete(lease)` → true only for current, unexpired ownership. `queue.heartbeat(lease, Duration.ofSeconds(30))` extends it. [Full example](docs/0.3.0/examples/Example.java), [ownership](docs/0.3.0/en.md#4-complete-only-with-current-ownership).
+5. **Retry or recover:** `queue.fail(lease, Duration.ofSeconds(5), "Temporary failure")` releases a current attempt; `queue.recoverExpired("reports", 100, Duration.ofSeconds(5))` recovers abandoned work. Exhausted tasks become DEAD. [Failure walkthrough](docs/0.3.0/en.md#6-retry-exhaust-the-budget-and-recover-expiry).
 
-| Operation | Result and responsibility |
-|---|---|
-| `submit(request)` | `true` inserted, `false` UUID already present. Existing payload is never overwritten; UUIDs are global across queues. |
-| `claim(queue, owner, limit, leaseTime)` | Immutable batch, or empty list. `owner` is diagnostic; token + generation enforce ownership. |
-| `heartbeat(lease, leaseTime)` | `true` extends expiry to at least database-now + duration; never shortens or revives. |
-| `complete(lease)` | `true` changes an unexpired current lease to `DONE`; `false` means it could not. |
-| `fail(lease, retryDelay, error)` | `true` releases current ownership to `READY` or `DEAD`; `false` means ownership was lost. |
-| `recoverExpired(queue, limit, retryDelay)` | Number recovered in this bounded batch; exhausted leases become `DEAD`. Run periodically in one or several processes. |
-| `find(id)` | Diagnostic state snapshot; empty if absent. |
+## Without Spring
 
-Durations use whole milliseconds, from zero (delays) or one millisecond (leases) through 365 days. Batches are limited to 1000. Higher numeric priority goes first, followed by creation time and UUID. Locks and parallel execution mean this is a preference, **not a global ordering guarantee**. Sustained high-priority work can starve low-priority work.
+Use `io.github.59alex:pg-task-lease:0.3.0` plus an R2DBC PostgreSQL driver. [Core guide](docs/0.3.0/en.md) and [complete finite report](docs/0.3.0/reports.en.md) show client creation and explicit operations. Core has no background scheduler; your host owns polling, heartbeats, recovery and the connection pool. The starter is the shorter path when these responsibilities belong to Spring.
 
-The returned lease is an immutable acquisition snapshot: a successful heartbeat updates PostgreSQL, not its `expiresAt()` field. Database time is authoritative. Choose a lease comfortably above ordinary processing/GC/network pauses and heartbeat well before expiry. A failed heartbeat must cause the application to stop work where possible; it cannot undo an already-issued external request.
+Processing attempts are at least once within the retry budget. External effects need an idempotency key; a lease protects queue state, not another system. Domain changes and queue acknowledgment are separate transactions. [Guarantees and failure boundaries](docs/0.3.0/reference.en.md).
 
-Every subscribed operation acquires one auto-commit connection and closes/releases it on completion, error, or cancellation. Supply a connection pool in production. Do not supply a transaction-bound factory. A transport or connection-release error can occur after SQL has committed: an error is not proof of rollback. Publishers are cold: resubscribing to `claim` is a **new claim**, not replay of the old batch. Keep the supplied UUID stable when retrying submission.
-
-No payload codecs, handler execution, automatic retry policy, polling, or retention scheduler are hidden inside the client. Payloads are opaque strings. Store compact references instead of large data. Diagnostic failure text is stored verbatim: remove secrets before passing it. Archive/delete terminal tasks with your own retention policy; deleting a task also removes its submission deduplication record.
-
-## Run the integration suite
-
-The suite requires an explicitly configured, fresh disposable database whose name ends in `_test`. It creates `public.pg_task_lease` and refuses an existing table; it never drops data. Missing PostgreSQL fails the build; integration tests are never silently skipped.
-
-```sh
-# From the repository root; requires Java 17+ and Docker.
-./scripts/test-isolated.sh -PtestJavaVersion=17
-```
-
-The script starts a fresh PostgreSQL 17 container on a dynamically assigned loopback port, waits for readiness, runs the build, and stops only that container even on failure. Each invocation has its own database. To use your own disposable fixture, set `PG_TASK_TEST_URL` explicitly before running `./gradlew build`.
-
-The script credentials are disposable test fixtures. Set `PG_TASK_TEST_USER` and `PG_TASK_TEST_PASSWORD` if your test instance uses different credentials.
-
-Tests cover concurrent disjoint claims, queue/priority/delay behavior, duplicate submissions, retries and exhaustion, heartbeat extension, stale token/generation rejection, expiry recovery, and expiry while an acknowledgement waits on a row lock. A separate concurrency test starts 12 worker clients against PostgreSQL, processes 96 tasks, and checks unique ownership and durable completion. It uses platform threads on Java 17 and actual virtual threads on Java 21/25/27. This is a correctness check, not a throughput benchmark. See [architecture and failure boundaries](docs/architecture.md), plus [audit findings and verification](docs/AUDIT.md).
-
-## License
-
-[MIT](LICENSE). Gradle wrapper files retain their upstream Apache-2.0 notices; the distribution's [license](gradle/licenses/LICENSE) and [notice](gradle/licenses/NOTICE) are included. Runtime dependencies keep their respective licenses.
+[Full guide](docs/0.3.0/en.md) · [API reference](docs/0.3.0/reference.en.md) · [Development](CONTRIBUTING.md)
 
 </details>
 
 <details name="readme-language" open>
 <summary><picture><source media="(prefers-color-scheme: dark)" srcset="assets/lang-ru-dark.svg"><img src="assets/lang-ru-light.svg" width="42" height="26" alt="RU"></picture></summary>
 
-**Версия библиотеки:** [0.3.0](docs/0.3.0/ru.md) · [Все версии](docs/index.md)<br>
-**Java:** [17](docs/0.3.0/java.ru.md#java-17) · [21](docs/0.3.0/java.ru.md#java-21) · [25](docs/0.3.0/java.ru.md#java-25) · [27](docs/0.3.0/java.ru.md#java-27)
+**Версия:** [0.3.0](docs/0.3.0/ru.md) · [Версии](docs/index.md) · Java [17 / 21 / 25 / 27](docs/JAVA-SUPPORT.md)
 
-[**Руководство: возможности, примеры и результаты →**](docs/0.3.0/ru.md)
+Фоновые отчёты, экспорты и уведомления с хранением в PostgreSQL. Отправьте задачу один раз, распределите обработку между работниками и восстановите незавершённую работу после перезапуска. Подходит приложению, у которого уже есть PostgreSQL и достаточно очереди с ограниченными попытками.
 
-Реактивная аренда задач в PostgreSQL: атомарный захват, явное владение, ограниченные повторы и восстановление после остановки работника.
+## Подключение к существующему Spring-проекту
 
-[Практический сценарий: фоновые CSV-отчёты и Spring Boot starter](docs/0.3.0/reports.ru.md).
+Для Boot 4.1.2 с WebFlux используйте [стартер](https://github.com/dlorian59/pg-task-lease-spring-boot-starter) ниже: он включает core и управляет работником. Минимальная Java — 17. Артефактов пока нет в Maven Central; локальная подготовка описана в [документе разработки](CONTRIBUTING.md).
 
-[Справочник API и возможностей](docs/0.3.0/reference.ru.md).
-
-## Возможности
-
-| Возможность | Пример и объяснение |
-| --- | --- |
-| 1. Подключить локально и подготовить PostgreSQL | [Открыть](docs/0.3.0/ru.md#1-подключить-локально-и-подготовить-postgresql) |
-| 2. Создать задачу и безопасно повторить отправку | [Открыть](docs/0.3.0/ru.md#2-создать-задачу-и-безопасно-повторить-отправку) |
-| 3. Забирать задачи несколькими работниками | [Открыть](docs/0.3.0/ru.md#3-забирать-задачи-несколькими-работниками) |
-| 4. Завершать только с действующей арендой | [Открыть](docs/0.3.0/ru.md#4-завершать-только-с-действующей-арендой) |
-| 5. Продлевать аренду долгой задачи | [Открыть](docs/0.3.0/ru.md#5-продлевать-аренду-долгой-задачи) |
-| 6. Повторять, ограничивать попытки и возвращать просроченные задачи | [Открыть](docs/0.3.0/ru.md#6-повторять-ограничивать-попытки-и-возвращать-просроченные-задачи) |
-| 7. Управлять жизненным циклом и пулом соединений | [Открыть](docs/0.3.0/ru.md#7-управлять-жизненным-циклом-и-пулом-соединений) |
-| 8. Запустить пример и разобрать ошибки | [Открыть](docs/0.3.0/ru.md#8-запустить-пример-и-разобрать-ошибки) |
-
-## Быстрый запуск
-
-Из рабочей копии репозитория, с JDK 17+ и Docker:
-
-```bash
-./scripts/test-isolated.sh -PtestJavaVersion=17
-./gradlew publishToMavenLocal
+Maven (внутри dependencies):
+```xml
+<dependency>
+  <groupId>io.github.59alex</groupId>
+  <artifactId>pg-task-lease-spring-boot-starter</artifactId>
+  <version>0.1.0</version>
+</dependency>
+<dependency>
+  <groupId>org.springframework.boot</groupId>
+  <artifactId>spring-boot-starter-webflux</artifactId>
+</dependency>
+<dependency>
+  <groupId>org.postgresql</groupId>
+  <artifactId>r2dbc-postgresql</artifactId>
+  <scope>runtime</scope>
+</dependency>
+```
+Gradle Kotlin DSL (версиями управляет ваш Boot BOM/plugin):
+```kotlin
+dependencies {
+    implementation("io.github.59alex:pg-task-lease-spring-boot-starter:0.1.0")
+    implementation("org.springframework.boot:spring-boot-starter-webflux")
+    runtimeOnly("org.postgresql:r2dbc-postgresql")
+}
 ```
 
-Первая команда создаёт отдельную PostgreSQL 17 на случайном порту localhost, запускает сборку с тестами и останавливает только свой контейнер, в том числе при ошибке. Вторая устанавливает версию 0.3.0 в Maven Local. Затем запустите [полный пример потребителя](docs/0.3.0/ru.md#8-запустить-пример-и-разобрать-ошибки): он проверит захват, heartbeat, повторы и восстановление просроченной аренды.
+До включения worker примените [миграцию](src/main/resources/pg-task-lease.sql) через обычный инструмент приложения, затем добавьте application.yml:
 
-Тестам нужна явно заданная новая временная база с суффиксом `_test`. Набор создаёт свою таблицу и отказывается работать поверх существующей; данные не удаляются. Работа API, конкурентные гонки и освобождение соединений описаны в [отчёте аудита](docs/AUDIT.md).
+```yaml
+spring:
+  r2dbc:
+    url: ${TASKS_R2DBC_URL}
+    username: ${TASKS_DB_USER}
+    password: ${TASKS_DB_PASSWORD}
+  sql:
+    init:
+      mode: never
+pg-task-lease:
+  worker:
+    enabled: true
+```
 
-## Совместимость и установка
+[Готовые контроллер и сервис](https://github.com/dlorian59/pg-task-lease-spring-boot-starter/blob/main/README.md) принимают PUT /reports/{id}?quarter=2026-Q4 и предоставляют GET /reports/{id}. Скопируйте полные исходники по ссылке в структуру под существующим пакетом сканирования приложения:
 
-Основной артефакт требует Java 17. Проверены JVM 17, 21, 25 и 27. Более новая JVM не повышает минимальную версию библиотеки.
+```text
+src/main/java/example/
+  ReportController.java
+  ReportService.java
+  ReportJobs.java
+src/main/resources/application.yml
+src/main/resources/db/migration/Vxxx__pg_task_lease.sql
+```
 
-Специальных модулей с API Java 21/25/27 нет: библиотека использует базу Java 17.
+Сервис получает PgTaskQueue через DI и отправляет одним выражением:
 
-Артефакты устанавливаются из исходников через Maven Local; публикация в Maven Central пока не настроена. Точные зависимости, команды и требования примера находятся в руководстве.
+```java
+queue.submit(TaskRequest.ready(id, "reports", "2026-Q4"));
+```
 
-## Лицензия
+[Полный CSV-обработчик](https://github.com/dlorian59/pg-task-lease-spring-boot-starter/blob/main/examples/report-worker/src/main/java/example/ReportJobs.java) стартера объявляет @PgTaskHandler(value = "reports", blocking = true) на обычном void-методе. Он пишет отчёт с ключом по UUID задачи; опрос и heartbeat в приложении реализовывать не нужно. HTTP 202 означает принятую отправку, GET впоследствии возвращает DONE, а reports/&lt;id&gt;.csv содержит результат. Аутентификация, проверка владельца и реальные данные — ответственность приложения. [Пошаговый разбор](https://github.com/dlorian59/pg-task-lease-spring-boot-starter/blob/main/docs/0.1.0/ru.md).
 
-[MIT](LICENSE). Лицензии сторонних зависимостей сохраняются.
+## Возможности core
+
+1. **Отправить с defaults:** `TaskRequest.ready(id, "reports", quarter)` → priority 0, пять попыток, доступна сразу. Сохраняйте ID при сетевых повторах: submit возвращает false для существующего ID, не заменяя строку. [Полный код](docs/0.3.0/examples/ReportExample.java), [разбор](docs/0.3.0/ru.md#2-создать-задачу-и-безопасно-повторить-отправку).
+2. **Изменить только нужный параметр:** `request.withDelay(Duration.ofMinutes(5)).withPriority(10)` → новый проверенный запрос. `.withMaxAttempts(2)` ограничивает захваты. [Справочник](docs/0.3.0/reference.ru.md#готовые-запросы-и-неизменяемые-копии).
+3. **Разделить работу:** `queue.claim("reports", "worker-a", 4, Duration.ofSeconds(30))` → до четырёх разных задач с владением этой попытки. [Параллельный пример](docs/0.3.0/ru.md#3-забирать-задачи-несколькими-работниками).
+4. **Подтвердить текущую работу:** `queue.complete(lease)` → true только для текущей непросроченной аренды. `queue.heartbeat(lease, Duration.ofSeconds(30))` продлевает её. [Полный пример](docs/0.3.0/examples/Example.java), [владение](docs/0.3.0/ru.md#4-завершать-только-с-действующей-арендой).
+5. **Повторить или восстановить:** `queue.fail(lease, Duration.ofSeconds(5), "Temporary failure")` освобождает текущую попытку; `queue.recoverExpired("reports", 100, Duration.ofSeconds(5))` возвращает брошенные задачи. При исчерпании попыток — DEAD. [Разбор отказов](docs/0.3.0/ru.md#6-повторять-ограничивать-попытки-и-возвращать-просроченные-задачи).
+
+## Без Spring
+
+Используйте `io.github.59alex:pg-task-lease:0.3.0` и драйвер R2DBC PostgreSQL. [Руководство core](docs/0.3.0/ru.md) и [полный конечный отчёт](docs/0.3.0/reports.ru.md) показывают создание клиента и явные операции. У core нет фонового планировщика: приложение владеет опросом, heartbeat, восстановлением и пулом. Стартер сокращает код, когда этими обязанностями должен управлять Spring.
+
+Попытки обработки — at-least-once в пределах бюджета. Внешним эффектам нужен ключ идемпотентности: аренда защищает очередь, а не другую систему. Доменные изменения и подтверждение очереди — разные транзакции. [Гарантии и отказы](docs/0.3.0/reference.ru.md).
+
+[Полное руководство](docs/0.3.0/ru.md) · [Справочник API](docs/0.3.0/reference.ru.md) · [Разработка](CONTRIBUTING.md)
 
 </details>
+
+[MIT](LICENSE).

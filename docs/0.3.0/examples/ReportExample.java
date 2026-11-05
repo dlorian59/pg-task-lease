@@ -19,7 +19,7 @@ public final class ReportExample {
         String name = "report-example-" + id;
         // A repeated producer request retains the same ID and cannot overwrite the existing task.
         // Повторный запрос производителя сохраняет ID и не перезаписывает существующую задачу.
-        if (!queue.submit(new TaskRequest(id, name, quarter, 0, 3, Duration.ZERO)).block(wait)) {
+        if (!queue.submit(TaskRequest.ready(id, name, quarter).withMaxAttempts(3)).block(wait)) {
             System.out.println("ALREADY_SUBMITTED state=" + queue.find(id).block(wait).state());
             return;
         }

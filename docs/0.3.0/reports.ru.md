@@ -28,10 +28,10 @@ quarter,invoices,total
 
 ## Сократить служебный код через Spring Boot
 
-Отдельный [pg-task-lease-spring-boot-starter](https://github.com/dlorian59/pg-task-lease-spring-boot-starter) создаёт PgTaskQueue из ConnectionFactory Boot и добавляет явно включаемого работника. Приложение отчёта версии 0.1.0 использует тот же CSV по UUID, но хосту достаточно поставить @PgTaskHandler("reports") на метод singleton bean (либо зарегистрировать TaskHandlerRegistration) и задать `pg-task-lease.worker.enabled=true`.
+Отдельный [pg-task-lease-spring-boot-starter](https://github.com/dlorian59/pg-task-lease-spring-boot-starter) создаёт PgTaskQueue из ConnectionFactory Boot и добавляет явно включаемого работника. Приложение отчёта версии 0.1.0 использует тот же CSV по UUID, но хосту достаточно поставить @PgTaskHandler(value = "reports", blocking = true) на метод singleton bean (либо зарегистрировать TaskHandlerRegistration) и задать `pg-task-lease.worker.enabled=true`.
 
 Стартер берёт на себя ограниченный опрос, ожидание обработчика, heartbeat, восстановление просроченных аренд, тайм-ауты, повторы и отмену при остановке. Собственные beans имеют приоритет. Миграция базы остаётся явной. Аннотированные методы обнаруживаются у инициализированных singleton beans и вызываются через существующие Spring-прокси. Это регистрация, а не новый аспект. Доменные записи и подтверждение очереди не объединяются в одну транзакцию.
 
-Клонируйте репозитории ядра и стартера в соседние каталоги. Если репозитории находятся рядом, откройте `../pg-task-lease-spring-boot-starter/README.md`, затем `docs/0.1.0/ru.md` и `examples/report-worker/` в этом репозитории. После установки core в Maven Local установите стартер через `./gradlew build publishToMavenLocal` и запустите его `examples/report-worker/run-demo.sh`.
+[Подключение к существующему проекту](https://github.com/dlorian59/pg-task-lease-spring-boot-starter/blob/main/README.md) содержит Maven/Gradle-зависимости, YAML и полные контроллер/сервис. HTTP-пример использует обычный void(TaskLease) с явным blocking=true; стартер выполняет его на boundedElastic. Исходный реактивный контракт Mono<Void> остаётся основным. [Разработка и HTTP-проверка потребителя](https://github.com/dlorian59/pg-task-lease-spring-boot-starter/blob/main/CONTRIBUTING.md).
 
 [README](../../README.md) · [Core API](ru.md) · [Версии](../index.md)

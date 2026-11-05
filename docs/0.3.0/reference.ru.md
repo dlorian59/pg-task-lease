@@ -43,3 +43,9 @@ API очистки нет. Удаляйте терминальные строк�
 Управляемый опрос, heartbeat, восстановление и обработчики через Spring-прокси описаны в [практическом случае стартера](reports.ru.md#сократить-служебный-код-через-spring-boot). Core не содержит регистрации через Spring/AOP.
 
 [Руководство](ru.md) · [Практический пример](reports.ru.md) · [README](../../README.md)
+
+## Готовые запросы и неизменяемые копии
+
+TaskRequest.ready(id, queue, payload) задаёт priority 0, DEFAULT_MAX_ATTEMPTS=5 и Duration.ZERO. ID явный: повтор с новым ID создаёт новую задачу. withPriority(int), withMaxAttempts(int), withDelay(Duration) возвращают новый запрос с проверками конструктора. ID, очередь, payload и остальные настройки сохраняются. Задержка — неотрицательное целое число миллисекунд до 365 дней; attempts положителен. Прежний конструктор поддерживается.
+
+[Полный исходник отчёта](examples/ReportExample.java) · [Spring-интеграция](https://github.com/dlorian59/pg-task-lease-spring-boot-starter) · [README](../../README.md)
